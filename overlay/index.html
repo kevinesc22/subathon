@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Subathon Overlay</title>
+<style>
+  body{font-family:Inter,system-ui,Arial;background:#0b0d10;color:#e8f0fb;margin:0;padding:20px}
+  .card{background:#12151b;border:1px solid #1f2430;border-radius:20px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.35);max-width:480px}
+  .h1{font-weight:800;font-size:48px;letter-spacing:1px;margin:0 0 10px}
+  .muted{opacity:.7}
+  .bar{height:12px;background:#202633;border-radius:12px;overflow:hidden;margin:14px 0 8px}
+  .fill{height:100%;width:0%;background:linear-gradient(90deg,#27d7ff,#43ff7b)}
+  .row{display:flex;gap:10px;margin-top:10px}
+  .btn{flex:1;background:#1e2533;border:1px solid #2b3344;border-radius:12px;color:#cfe6ff;padding:10px 14px;font-weight:600;cursor:pointer}
+  .btn:hover{filter:brightness(1.1)}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="h1" id="clock">00:00:00</div>
+    <div class="muted" id="status">Esperando eventos…</div>
+    <div class="bar"><div class="fill" id="fill"></div></div>
+    <div class="row">
+      <button class="btn" id="add">+10s</button>
+      <button class="btn" id="sub">-10s</button>
+    </div>
+  </div>
+
+<script>
+  const qs = new URLSearchParams(location.search);
+  const wsUrl = qs.get('ws') || 'ws://localhost:8080';
+  const ws = new WebSocket(wsUrl);
+  let remaining = 0, maxSeconds = 3600, manualStep = 10;
+
+  function fmt(s){
+    s = Math.max(0, Math.floor(s));
+    const h = String(Math.floor(s/3600)).padStart(2,'0');
+    const m = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const sec = String(s%60).padStart(2,'0');
+    return `${h}:${m}:${sec}`;
+  }
+  function draw(){
+    document.getElementById('clock').textContent = fmt(remaining);
+    const pct = Math.min(100, Math.max(0, 100*remaining/maxSeconds));
+    document.getElementById('fill').style.width = pct+'%';
+  }
+  setInterval(()=>{ remaining = Math.max(0, remaining-1); draw(); }, 1000);
+
+  ws.onmessage = (ev)=>{
+    const {type, payload} = JSON.parse(ev.data);
+    if (type==='init'){
+      remaining = payload.remaining; maxSeconds = payload.rules.maxSeconds; manualStep = payload.rules.manualStep; draw();
+    }
+    if (type==='timer'){ remaining = payload.remaining; draw(); }
+    if (type==='event'){
+      document.getElementById('status').textContent =
+        `+${payload.add}s • ${payload.platform} • ${payload.type}`;
+    }
+  };
+
+  document.getElementById('add').onclick = ()=> ws.send(JSON.stringify({type:'manual:add', payload:{seconds:manualStep}}));
+  document.getElementById('sub').onclick = ()=> ws.send(JSON.stringify({type:'manual:sub', payload:{seconds:manualStep}}));
+</script>
+</body>
+</html>
