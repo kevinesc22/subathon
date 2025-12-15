@@ -1,4 +1,4 @@
-# Subathon Hub (Railway-ready)
-- Exposes HTTP (`/health`) and WebSocket on the same PORT.
-- Use envs: `PORT`, `TIKTOK_USERNAME`, `KICK_CHANNEL`.
-- Overlay can connect to the same host without query params.
+# Subathon TikFinity-like Overlay
+- Transparent digits (enable "Allow transparency" in OBS Browser Source).
+- Connect to TikTok/Kick from the page (runtime config via WebSocket).
+- Railway-ready (HTTP + WS on same PORT).
