@@ -1,0 +1,15 @@
+{
+  "baseSeconds": 3600,
+  "maxSeconds": 86400,
+  "decaySecondsPerSecond": 1,
+  "manualStep": 10,
+  "kick": {
+    "subscriptionSeconds": 120,
+    "giftedSubSeconds": 90,
+    "kickCoinToSeconds": 0.8
+  },
+  "tiktok": {
+    "subSeconds": 120,
+    "coinToSeconds": 0.6
+  }
+}

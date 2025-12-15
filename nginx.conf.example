@@ -1,0 +1,35 @@
+# /etc/nginx/nginx.conf  (fragmento relevante)
+rtmp {
+  server {
+    listen 1935;
+    chunk_size 4096;
+
+    application live {
+      live on;
+      interleave on;
+      wait_key on;
+      drop_idle_publisher 10s;
+      record off;
+
+      # Reemplaza con endpoints reales
+      # push rtmp://<tiktok-ingest>/<app>/<stream_key>;
+      # push rtmp://<kick-ingest>/<app>/<stream_key>;
+    }
+
+    application standby {
+      live on;
+      exec_static ffmpeg -stream_loop -1 -re -i /var/media/standby/standby.mp4
+        -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -profile:v high -b:v 3500k -maxrate 3500k -g 60
+        -c:a aac -b:a 128k -f flv rtmp://127.0.0.1/live/main;
+    }
+  }
+}
+
+http {
+  include /etc/nginx/mime.types;
+  sendfile on;
+  server {
+    listen 80;
+    root /var/www/html;
+  }
+}
