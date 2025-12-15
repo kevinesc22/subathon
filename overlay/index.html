@@ -29,7 +29,8 @@
 
 <script>
   const qs = new URLSearchParams(location.search);
-  const wsUrl = qs.get('ws') || 'ws://localhost:8080';
+  const defaultWs = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+  const wsUrl = qs.get('ws') || defaultWs;
   const ws = new WebSocket(wsUrl);
   let remaining = 0, maxSeconds = 3600, manualStep = 10;
 
@@ -54,8 +55,7 @@
     }
     if (type==='timer'){ remaining = payload.remaining; draw(); }
     if (type==='event'){
-      document.getElementById('status').textContent =
-        `+${payload.add}s • ${payload.platform} • ${payload.type}`;
+      document.getElementById('status').textContent = `+${payload.add}s • ${payload.platform} • ${payload.type}`;
     }
   };
 
