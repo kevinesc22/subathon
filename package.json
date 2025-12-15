@@ -1,13 +1,16 @@
 {
   "name": "subathon-hub",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
+  "engines": {
+    "node": "^18 || ^20 || ^22"
+  },
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "ws": "^8.18.0",
     "dotenv": "^16.4.5",
-    "tiktok-live-connector": "^1.7.16"
+    "tiktok-live-connector": "latest"
   }
 }

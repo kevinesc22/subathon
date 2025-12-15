@@ -1,10 +1,11 @@
 import 'dotenv/config';
+import http from 'http';
 import { WebSocketServer } from 'ws';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-// TikTok
 import TikTokLiveConnection from 'tiktok-live-connector';
+import WebSocket from 'ws';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +17,17 @@ const rules = JSON.parse(fs.readFileSync(path.join(__dirname, 'rules.json'), 'ut
 let remaining = rules.baseSeconds;
 let lastTick = Date.now();
 
-const wss = new WebSocketServer({ port: process.env.PORT || 8080 });
+const port = process.env.PORT || 8080;
+const server = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'content-type': 'text/plain' });
+    return res.end('ok');
+  }
+  res.writeHead(200, { 'content-type': 'text/plain' });
+  res.end('Subathon Hub running');
+});
+
+const wss = new WebSocketServer({ server });
 const broadcast = (type, payload) => {
   const msg = JSON.stringify({ type, payload });
   for (const c of wss.clients) if (c.readyState === 1) c.send(msg);
@@ -34,7 +45,6 @@ function tickLoop() {
 }
 tickLoop();
 
-// ---- Controles manuales desde overlay
 wss.on('connection', (ws) => {
   ws.send(JSON.stringify({ type: 'init', payload: { remaining, rules }}));
   ws.on('message', (raw) => {
@@ -50,7 +60,7 @@ wss.on('connection', (ws) => {
   });
 });
 
-// ---- TIKTOK EVENTS
+// TIKTOK
 if (process.env.TIKTOK_USERNAME) {
   const tiktok = new TikTokLiveConnection(process.env.TIKTOK_USERNAME, { enableWebsocketUpgrade: true });
   tiktok.connect().catch(() => {});
@@ -64,15 +74,13 @@ if (process.env.TIKTOK_USERNAME) {
   });
 }
 
-// ---- KICK EVENTS (chat WebSocket - simplificado)
-import WebSocket from 'ws';
+// KICK (simplificado a eventos de chat)
 function connectKick() {
   if (!process.env.KICK_CHANNEL) return;
   const ws = new WebSocket(`wss://chat.kick.com/ws`);
   ws.on('open', () => {
     ws.send(JSON.stringify({ event: "phx_join", topic: `channel:${process.env.KICK_CHANNEL}`, payload: {}, ref: 1 }));
   });
-
   ws.on('message', (buf) => {
     try {
       const msg = JSON.parse(buf.toString());
@@ -101,4 +109,6 @@ function connectKick() {
 }
 connectKick();
 
-console.log(`Subathon Hub listo en ws://localhost:${process.env.PORT || 8080}`);
+server.listen(port, '0.0.0.0', () => {
+  console.log('HTTP+WS on :' + port);
+});
