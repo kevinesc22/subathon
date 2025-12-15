@@ -5,25 +5,83 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Subathon Overlay</title>
 <style>
-  body{font-family:Inter,system-ui,Arial;background:#0b0d10;color:#e8f0fb;margin:0;padding:20px}
-  .card{background:#12151b;border:1px solid #1f2430;border-radius:20px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.35);max-width:480px}
-  .h1{font-weight:800;font-size:48px;letter-spacing:1px;margin:0 0 10px}
-  .muted{opacity:.7}
-  .bar{height:12px;background:#202633;border-radius:12px;overflow:hidden;margin:14px 0 8px}
-  .fill{height:100%;width:0%;background:linear-gradient(90deg,#27d7ff,#43ff7b)}
+  html, body { background: transparent; }
+  body{font-family: 'Inter', system-ui, Arial; color:#e8f0fb; margin:0; padding:20px}
+  .wrap{display:flex;gap:20px;align-items:flex-start}
+  .ticker{
+    background: rgba(0,0,0,0.0);
+    border-radius: 16px;
+    padding: 10px 14px;
+    display:inline-flex;
+    align-items:center;
+    backdrop-filter: blur(0px);
+  }
+  /* Big transparent digits (TikFinity vibe) */
+  .digits{
+    font-weight: 900;
+    font-size: 120px;
+    letter-spacing: 2px;
+    line-height: 1;
+    color: #ffffff;
+    text-shadow: 0 0 12px rgba(0,0,0,.35);
+  }
+  .muted{opacity:.85; font-weight:600; margin-top:8px}
+  .bar{height:12px;background:rgba(255,255,255,.12);border-radius:12px;overflow:hidden;margin:12px 0 6px; width: 520px}
+  .fill{height:100%;width:0%}
+  .fill::before{
+    content:""; display:block; height:100%; width:100%;
+  }
+  /* gradient through CSS variable so OBS color key keeps transparency intact */
+  .fill{ background: linear-gradient(90deg,#27d7ff,#43ff7b); }
+
+  .panel{
+    background: rgba(10,12,16,.55);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius: 16px;
+    padding: 12px;
+    width: 360px;
+  }
   .row{display:flex;gap:10px;margin-top:10px}
-  .btn{flex:1;background:#1e2533;border:1px solid #2b3344;border-radius:12px;color:#cfe6ff;padding:10px 14px;font-weight:600;cursor:pointer}
-  .btn:hover{filter:brightness(1.1)}
+  .btn{flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+       border-radius:12px;color:#e8f0fb;padding:10px 14px;font-weight:700;cursor:pointer}
+  .btn:hover{filter:brightness(1.12)}
+  .input{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);
+         border-radius:12px;color:#e8f0fb;padding:10px 12px; outline:none}
+  label{font-size:12px;opacity:.8}
 </style>
 </head>
 <body>
-  <div class="card">
-    <div class="h1" id="clock">00:00:00</div>
-    <div class="muted" id="status">Esperando eventos…</div>
-    <div class="bar"><div class="fill" id="fill"></div></div>
-    <div class="row">
-      <button class="btn" id="add">+10s</button>
-      <button class="btn" id="sub">-10s</button>
+  <div class="wrap">
+    <div>
+      <div class="ticker">
+        <div class="digits" id="clock">00:00:00</div>
+      </div>
+      <div class="muted" id="status">Listo.</div>
+      <div class="bar"><div class="fill" id="fill"></div></div>
+      <div class="row">
+        <button class="btn" id="add">+10s</button>
+        <button class="btn" id="sub">-10s</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row" style="gap:6px; align-items: end;">
+        <div style="flex:1">
+          <label>TikTok user</label>
+          <input class="input" id="tikuser" placeholder="ej. TuUsuarioTikTok">
+        </div>
+        <button class="btn" id="btnTik">Conectar</button>
+      </div>
+      <div class="row" style="gap:6px; align-items: end;">
+        <div style="flex:1">
+          <label>Kick canal</label>
+          <input class="input" id="kickch" placeholder="ej. TuCanalKick">
+        </div>
+        <button class="btn" id="btnKick">Conectar</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="saveCfg">Guardar / Aplicar</button>
+      </div>
     </div>
   </div>
 
@@ -32,6 +90,7 @@
   const defaultWs = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
   const wsUrl = qs.get('ws') || defaultWs;
   const ws = new WebSocket(wsUrl);
+
   let remaining = 0, maxSeconds = 3600, manualStep = 10;
 
   function fmt(s){
@@ -52,15 +111,24 @@
     const {type, payload} = JSON.parse(ev.data);
     if (type==='init'){
       remaining = payload.remaining; maxSeconds = payload.rules.maxSeconds; manualStep = payload.rules.manualStep; draw();
+      if (payload.tiktokUser) document.getElementById('tikuser').value = payload.tiktokUser;
+      if (payload.kickChannel) document.getElementById('kickch').value = payload.kickChannel;
     }
     if (type==='timer'){ remaining = payload.remaining; draw(); }
-    if (type==='event'){
-      document.getElementById('status').textContent = `+${payload.add}s • ${payload.platform} • ${payload.type}`;
-    }
+    if (type==='event'){ document.getElementById('status').textContent = `+${payload.add}s • ${payload.platform} • ${payload.type}`; }
+    if (type==='config:applied'){ document.getElementById('status').textContent = `Config aplicada ✓ TikTok:${payload.tiktokUser||'-'} Kick:${payload.kickChannel||'-'}`; }
   };
 
+  // transparency: in OBS Browser Source, enable "Allow transparency"
   document.getElementById('add').onclick = ()=> ws.send(JSON.stringify({type:'manual:add', payload:{seconds:manualStep}}));
   document.getElementById('sub').onclick = ()=> ws.send(JSON.stringify({type:'manual:sub', payload:{seconds:manualStep}}));
+
+  document.getElementById('btnTik').onclick = ()=> ws.send(JSON.stringify({type:'config:update', payload:{tiktokUser: document.getElementById('tikuser').value}}));
+  document.getElementById('btnKick').onclick = ()=> ws.send(JSON.stringify({type:'config:update', payload:{kickChannel: document.getElementById('kickch').value}}));
+  document.getElementById('saveCfg').onclick = ()=> ws.send(JSON.stringify({type:'config:update', payload:{
+    tiktokUser: document.getElementById('tikuser').value,
+    kickChannel: document.getElementById('kickch').value
+  }}));
 </script>
 </body>
 </html>
